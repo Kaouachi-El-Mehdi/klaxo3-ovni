@@ -9,26 +9,22 @@ réaffichés par le script quand on le relance d'une traite.
 - Lignes chargées normalement (11 champs) : **88 679**
 - Lignes mises à part (nombre de champs ≠ 11) : **196**
 
-88 679 + 196 = 88 875, les trois nombres sont cohérents : aucune ligne n'a
-disparu, on l'a juste rangée dans un tas à part le temps de comprendre ce
-qu'elle contenait.
+88 679 + 196 = 88 875, ça tombe juste : aucune ligne n'a disparu, on a juste
+mis les 196 de côté le temps de comprendre ce qui clochait.
 
-Les 196 lignes mises de côté ont toutes **12 champs** au lieu de 11. Exemple
-concret :
+Elles ont toutes **12 champs** au lieu de 11. Exemple :
 
 ```
 10/1/2006 12:00,,,,,0,,,"((EDITORIAL COMMENT ABOUT THE UFO PHENOMEN))  ufo+alien+reptiles",10/30/2006,0,0
 ```
 
-Ce qui cloche : entre `duration_seconds` et le commentaire, il y a un champ
-vide en trop (`duration_hours_min` **et** `comments` sont vides, puis le texte
-qu'on attendait dans `comments` arrive en 9ᵉ position au lieu de la 8ᵉ, ce qui
-décale `date_posted`, `latitude` et `longitude` d'une case). Ces 196 lignes
-n'ont jamais eu de `shape` renseignée, on soupçonne un bug du service qui a
-compilé le CSV plutôt qu'une erreur du témoin. On les a chargées telles
-quelles (en mémoire, dans une liste à part) mais on ne les fait pas entrer
-dans le DataFrame de travail des phases suivantes : les décaler à la main
-aurait été un choix arbitraire de plus, alors qu'elles pèsent 0,22% du total.
+Il y a un champ vide en trop entre `duration_seconds` et le commentaire
+(`duration_hours_min` et `comments` sont vides, puis le texte arrive en 9ᵉ
+position au lieu de la 8ᵉ, ce qui décale `date_posted`, `latitude` et
+`longitude` d'une case). Aucune de ces 196 lignes n'a de `shape` renseignée
+non plus — ça sent plus le bug du service qui a compilé le CSV qu'une erreur
+du témoin. On les garde à part sans les recaler à la main : les décaler
+aurait été un choix arbitraire, et elles ne pèsent que 0,22% du total.
 
 ## Phase 2 : rien n'est du bon type
 
@@ -42,32 +38,29 @@ Anomalies rencontrées lors de la conversion des 88 679 lignes propres :
 | `datetime` | date | **1220** | `10/10/2005 24:00` (toujours `24:00`) |
 | `date_posted` | date | 0 | — |
 
-Quatre anomalies de nature différente, avec leur origine :
+Quatre anomalies, quatre origines différentes :
 
-1. **`latitude` — 1 valeur (`33q.200088`)** : une lettre `q` insérée au milieu
-   d'un nombre. Cette seule ligne sur 88 679 suffit à faire lire toute la
-   colonne comme du texte si on ne force pas la conversion — origine :
-   **service de transmission** (le pipeline de géocodage qui a produit le
-   CSV).
+1. **`latitude` — 1 valeur (`33q.200088`)** : un `q` glissé au milieu d'un
+   nombre. Une seule ligne sur 88 679, mais ça suffit à faire lire toute la
+   colonne comme du texte si on ne force pas la conversion. Ça vient du
+   **service de transmission** (le géocodage qui a produit le CSV).
 2. **`duration_seconds` — 5 valeurs (ex. `` `2` ``, `` `8` ``)** : un
-   guillemet simple mal encodé en un backtick. En regardant
-   `duration_hours_min` en face (`"each a few seconds"`, `"1/3200"`,
-   `"1/2 segundo"`), on voit que ce sont des durées écrites librement par
-   le témoin puis mal réencodées — origine : **témoin**.
-3. **`datetime` — 1220 valeurs finissant par `24:00`** : une heure `24:00`
-   n'existe pas (minuit s'écrit `00:00` le jour suivant). Le motif est
-   systématique et touche des dates très variées : c'est la trace d'un bug du
-   script de « time-standardization » qui a produit ce fichier — origine :
+   guillemet simple mal encodé en backtick. À côté, `duration_hours_min` dit
+   des choses comme `"each a few seconds"` ou `"1/2 segundo"` — ce sont des
+   durées écrites librement par le **témoin**, juste mal réencodées ensuite.
+3. **`datetime` — 1220 valeurs finissant par `24:00`** : ça n'existe pas
+   (minuit c'est `00:00` le jour suivant). Le motif revient sur plein de
+   dates différentes, donc c'est un bug du script de standardisation —
    **service de transmission**.
 4. **`shape` vide — 2922 lignes (3,30%)** : le témoin n'a pas su ou pas voulu
-   décrire la forme de ce qu'il a vu — origine : **témoin**.
+   décrire la forme — **témoin**.
 
-Bonus notés au passage (mêmes causes probables) : `country` vide sur 12 365
-lignes (13,94%) et `state` vide sur 7409 lignes (8,35%) — le témoin n'a pas
-précisé une localisation assez fine pour que le géocodage la résolve.
+Au passage, mêmes causes probables : `country` vide sur 12 365 lignes
+(13,94%) et `state` vide sur 7409 lignes (8,35%) — localisation trop vague
+pour que le géocodage s'en sorte.
 
-Aucune ligne n'a été supprimée à cette étape : les valeurs qui résistent à la
-conversion deviennent `NaN` / `NaT` dans leur propre colonne, la ligne reste.
+Rien n'est supprimé ici : les valeurs qui résistent à la conversion
+deviennent `NaN` / `NaT`, la ligne reste.
 
 ## Phase 3 : le Conseil veut trier les canulars
 
@@ -76,15 +69,13 @@ contient le mot « hoax » (recherche insensible à la casse).
 
 - Relevés marqués canulars : **802 / 88 679 (0,90 %)**
 
-**Ce que la règle attrape à tort :** 674 des 802 « hoax » trouvés viennent en
-réalité d'une note `((HOAX??))` ou `((NUFORC Note: Possible hoax?? PD))`
-ajoutée par un employé NUFORC qui n'était *pas sûr* — la règle les compte
-comme des canulars certains alors que le point d'interrogation dit le
-contraire.
+**Faux positifs :** 674 des 802 « hoax » viennent en fait d'une note
+`((HOAX??))` ou `((NUFORC Note: Possible hoax?? PD))` ajoutée par un employé
+NUFORC qui n'était pas sûr. La règle les compte comme certains alors que le
+point d'interrogation dit l'inverse.
 
-**Ce que la règle rate :** 65 commentaires contiennent « fake », « prank »,
-« made up » ou « joke » sans jamais écrire le mot « hoax » — ces cas
-échappent totalement à la règle.
+**Ratés :** 65 commentaires disent « fake », « prank », « made up » ou
+« joke » sans jamais écrire « hoax ». La règle passe complètement à côté.
 
 ## Phase 4 : le premier verdict
 
@@ -102,11 +93,10 @@ de `datetime`, `duration_seconds`, `latitude`, `longitude`, `shape`,
 - Sur 100 relevés que le système signale, le nombre qui en sont vraiment :
   **100,0**
 
-Ces deux nombres sont calculés uniquement sur l'ensemble de test (les 22 170
-relevés mis de côté avant l'entraînement, jamais montrés au modèle).
+Ces deux nombres viennent uniquement du test (les 22 170 relevés jamais
+montrés au modèle avant).
 
-Ce score est presque trop beau. C'est justement le sujet de la phase
-suivante.
+C'est presque trop beau pour être vrai. La phase suivante explique pourquoi.
 
 ## Phase 5 : le Conseil ne vous croit pas
 
@@ -132,19 +122,18 @@ sortent du modèle. On relance à l'identique sur les colonnes restantes.
 | Avant (avec `comments`) | 94,0 | 100,0 |
 | Après (sans `comments` ni `date_posted`) | **0,0** (0/201 canulars du test) | **0,0** (0/3 alertes du test) |
 
-**Pourquoi l'écart, en trois lignes :** notre étiquette de canular est
-littéralement « le mot *hoax* apparaît dans `comments` ». Donner `comments`
-au modèle, c'est lui donner l'étiquette elle-même écrite en toutes lettres —
-le TF-IDF a simplement appris à repérer le mot « hoax », pas à repérer un
-canular. Une fois ce texte retiré, on a vérifié que la forme, la durée et le
-pays ne portent quasiment aucun signal réel sur cette étiquette (taux de
-canular entre 0,8% et 2,7% selon le pays, entre 1,1% et 2,2% selon la forme —
-à peine différent du taux de base à 0,9%) : le score de la phase 4
-n'était donc pas « un peu gonflé », il était **entièrement** dû à la fuite.
+**Pourquoi ça s'effondre :** notre étiquette « canular » c'est littéralement
+« le mot *hoax* est dans `comments` ». Donner `comments` au modèle revient à
+lui donner la réponse écrite noir sur blanc — le TF-IDF a juste appris à
+repérer le mot « hoax », pas un vrai canular. Une fois ce champ retiré, la
+forme, la durée et le pays n'apportent quasiment rien (taux de canular entre
+0,8% et 2,7% selon le pays, entre 1,1% et 2,2% selon la forme — à peine
+différent du taux de base à 0,9%). Le score de la phase 4 n'était pas un peu
+gonflé, il venait entièrement de la fuite.
 
-*(Nos deux résultats ne sont pas identiques — la chute est même totale, ce
-qui confirme que la phase 3 tire son étiquette d'un texte écrit après coup
-par un employé qui connaissait déjà la réponse.)*
+*(La chute est totale, pas juste une baisse — ça confirme que l'étiquette de
+la phase 3 vient d'un texte écrit après coup par quelqu'un qui connaissait
+déjà la réponse.)*
 
 ## Phase 6 : le modèle le plus bête du Bureau
 
@@ -155,21 +144,19 @@ Sur le même ensemble de test (22 170 relevés) :
 | Stagiaire (toujours « pas un canular ») | **99,09 %** | 0,0 |
 | Notre modèle (phase 5, sans fuite) | **99,08 %** | 0,0 |
 
-**Mesure présentée au Conseil : le rappel (et la précision), pas
+**Ce qu'on présente au Conseil : le rappel (et la précision), pas
 l'exactitude.**
 
-Les canulars ne représentent que 0,9% des relevés. Répondre systématiquement
-« non » obtient donc une exactitude excellente sans jamais attraper un seul
-canular : son rappel est nul. L'exactitude ne fait ici que récompenser la
-classe majoritaire, elle est quasiment identique pour un système qui ne fait
-rien et pour un système qui essaie vraiment. Le rappel et la précision, eux,
-mesurent directement ce que le Conseil demande : combien de canulars sont
-attrapés, et combien des alertes sont fondées. C'est sur ces deux nombres,
-pas sur l'exactitude, qu'un système doit être jugé ici.
+Les canulars ne pèsent que 0,9% des relevés, donc répondre « non » à chaque
+fois donne déjà une exactitude excellente sans jamais en attraper un seul —
+rappel nul. L'exactitude récompense juste la classe majoritaire ici, elle ne
+fait quasi aucune différence entre un système qui ne fait rien et un système
+qui essaie vraiment. Le rappel et la précision, eux, disent ce qui compte
+vraiment : combien de canulars sont attrapés, et combien des alertes sont
+justes.
 
-*Constat honnête à ce stade : une fois la fuite retirée, notre modèle ne fait
-pas mieux que le stagiaire. Cela ne veut pas dire que le canular est
-indétectable, mais que les 10 colonnes structurées de cette transmission ne
-suffisent pas à le détecter — il faudrait soit plus de signal (un vrai texte
-de témoignage nettoyé de toute note d'employé), soit une autre source de
-vérité pour l'étiquette.*
+*Constat honnête : une fois la fuite retirée, notre modèle ne fait pas mieux
+que le stagiaire. Ça ne veut pas dire que le canular est indétectable, juste
+que ces 10 colonnes structurées ne suffisent pas — il faudrait plus de
+signal (un vrai texte de témoignage sans les notes d'employé), ou une autre
+source pour l'étiquette.*
