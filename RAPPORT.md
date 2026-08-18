@@ -9,8 +9,6 @@ réaffichés par le script quand on le relance d'une traite.
 - Lignes chargées normalement (11 champs) : **88 679**
 - Lignes mises à part (nombre de champs ≠ 11) : **196**
 
-88 679 + 196 = 88 875, ça tombe juste : aucune ligne n'a disparu, on a juste
-mis les 196 de côté le temps de comprendre ce qui clochait.
 
 Elles ont toutes **12 champs** au lieu de 11. Exemple :
 
